@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --border: #e8e4dc;
+      --text: #2c2a26;
+      --muted: #8a8680;
+      --accent: #4a7c6f;
+      --accent-light: #eaf2f0;
+      --check-mindfulness: #7c6fa0;
+      --check-movement: #4a7c6f;
+      --check-connection: #c07040;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 28px;
+    }
+
+    .date-display {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Focus */
+    .focus-input {
+      width: 100%;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      border: none;
+      outline: none;
+      background: transparent;
+      resize: none;
+      line-height: 1.4;
+      font-family: inherit;
+    }
+
+    .focus-input::placeholder { color: #c8c4bc; font-weight: 400; }
+
+    /* Tasks */
+    .task-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .task-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .task-input {
+      flex: 1;
+      border: none;
+      border-bottom: 1.5px solid var(--border);
+      outline: none;
+      background: transparent;
+      font-size: 15px;
+      color: var(--text);
+      padding: 4px 0;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .task-input:focus { border-color: var(--accent); }
+    .task-input::placeholder { color: #c8c4bc; }
+
+    /* Notices */
+    .notice-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .notice-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .notice-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      margin-top: 8px;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .notice-input:focus ~ .notice-dot,
+    .notice-item:focus-within .notice-dot { background: var(--accent); }
+
+    .notice-input {
+      flex: 1;
+      border: none;
+      border-bottom: 1.5px solid var(--border);
+      outline: none;
+      background: transparent;
+      font-size: 15px;
+      color: var(--text);
+      padding: 4px 0;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      resize: none;
+      min-height: 28px;
+    }
+
+    .notice-input:focus { border-color: var(--accent); }
+    .notice-input::placeholder { color: #c8c4bc; }
+
+    /* Reflection */
+    .reflection-input {
+      width: 100%;
+      min-height: 100px;
+      font-size: 15px;
+      color: var(--text);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      background: #fafaf8;
+      resize: vertical;
+      line-height: 1.6;
+      font-family: inherit;
+      padding: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .reflection-input:focus { border-color: var(--accent); background: #fff; }
+    .reflection-input::placeholder { color: #c8c4bc; }
+
+    /* Wellbeing checkboxes */
+    .wellbeing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .wellbeing-item {
+      position: relative;
+    }
+
+    .wellbeing-item input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .wellbeing-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 12px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      background: #fafaf8;
+    }
+
+    .wellbeing-label:hover {
+      border-color: #ccc;
+      background: #f7f6f2;
+    }
+
+    .wellbeing-icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .wellbeing-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: color 0.2s;
+    }
+
+    .check-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .check-mark svg {
+      display: none;
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Mindfulness checked */
+    .wellbeing-item:nth-child(1) input:checked ~ .wellbeing-label {
+      border-color: var(--check-mindfulness);
+      background: #f5f2fa;
+    }
+    .wellbeing-item:nth-child(1) input:checked ~ .wellbeing-label .check-mark {
+      background: var(--check-mindfulness);
+      border-color: var(--check-mindfulness);
+    }
+    .wellbeing-item:nth-child(1) input:checked ~ .wellbeing-label .wellbeing-name {
+      color: var(--check-mindfulness);
+    }
+
+    /* Movement checked */
+    .wellbeing-item:nth-child(2) input:checked ~ .wellbeing-label {
+      border-color: var(--check-movement);
+      background: var(--accent-light);
+    }
+    .wellbeing-item:nth-child(2) input:checked ~ .wellbeing-label .check-mark {
+      background: var(--check-movement);
+      border-color: var(--check-movement);
+    }
+    .wellbeing-item:nth-child(2) input:checked ~ .wellbeing-label .wellbeing-name {
+      color: var(--check-movement);
+    }
+
+    /* Connection checked */
+    .wellbeing-item:nth-child(3) input:checked ~ .wellbeing-label {
+      border-color: var(--check-connection);
+      background: #faf2ea;
+    }
+    .wellbeing-item:nth-child(3) input:checked ~ .wellbeing-label .check-mark {
+      background: var(--check-connection);
+      border-color: var(--check-connection);
+    }
+    .wellbeing-item:nth-child(3) input:checked ~ .wellbeing-label .wellbeing-name {
+      color: var(--check-connection);
+    }
+
+    input:checked ~ .wellbeing-label .check-mark svg { display: block; }
+
+    /* Footer */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 0 4px;
+    }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .save-status.visible { opacity: 1; }
+
+    .btn-clear {
+      font-size: 12px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .btn-clear:hover { background: #eee; color: var(--text); }
+
+    @media (max-width: 480px) {
+      .wellbeing-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .wellbeing-label { padding: 14px 8px; }
+      .wellbeing-icon { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="date-display" id="dateDisplay"></div>
+      <h1>Daily Dashboard</h1>
+    </header>
+
+    <!-- Focus -->
+    <div class="card">
+      <div class="card-label">Today's Focus</div>
+      <textarea
+        id="focus"
+        class="focus-input"
+        rows="2"
+        placeholder="What is the one thing that matters most today?"
+      ></textarea>
+    </div>
+
+    <!-- Key Tasks -->
+    <div class="card">
+      <div class="card-label">2 Key Tasks</div>
+      <div class="task-list">
+        <div class="task-item">
+          <div class="task-number">1</div>
+          <input id="task1" class="task-input" type="text" placeholder="First priority task" />
+        </div>
+        <div class="task-item">
+          <div class="task-number">2</div>
+          <input id="task2" class="task-input" type="text" placeholder="Second priority task" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Wellbeing -->
+    <div class="card">
+      <div class="card-label">Wellbeing</div>
+      <div class="wellbeing-grid">
+
+        <div class="wellbeing-item">
+          <input type="checkbox" id="mindfulness" />
+          <label class="wellbeing-label" for="mindfulness">
+            <span class="wellbeing-icon">🧘</span>
+            <div class="check-mark">
+              <svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1.5,6 4.5,9 10.5,3" />
+              </svg>
+            </div>
+            <span class="wellbeing-name">Mindfulness</span>
+          </label>
+        </div>
+
+        <div class="wellbeing-item">
+          <input type="checkbox" id="movement" />
+          <label class="wellbeing-label" for="movement">
+            <span class="wellbeing-icon">🏃</span>
+            <div class="check-mark">
+              <svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1.5,6 4.5,9 10.5,3" />
+              </svg>
+            </div>
+            <span class="wellbeing-name">Movement</span>
+          </label>
+        </div>
+
+        <div class="wellbeing-item">
+          <input type="checkbox" id="connection" />
+          <label class="wellbeing-label" for="connection">
+            <span class="wellbeing-icon">🤝</span>
+            <div class="check-mark">
+              <svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1.5,6 4.5,9 10.5,3" />
+              </svg>
+            </div>
+            <span class="wellbeing-name">Connection</span>
+          </label>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Notices -->
+    <div class="card">
+      <div class="card-label">3 Things I Notice Today</div>
+      <div class="notice-list">
+        <div class="notice-item">
+          <div class="notice-dot"></div>
+          <textarea id="notice1" class="notice-input" rows="1" placeholder="Something I noticed..."></textarea>
+        </div>
+        <div class="notice-item">
+          <div class="notice-dot"></div>
+          <textarea id="notice2" class="notice-input" rows="1" placeholder="Something I noticed..."></textarea>
+        </div>
+        <div class="notice-item">
+          <div class="notice-dot"></div>
+          <textarea id="notice3" class="notice-input" rows="1" placeholder="Something I noticed..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reflection -->
+    <div class="card">
+      <div class="card-label">End of Day Reflection</div>
+      <textarea
+        id="reflection"
+        class="reflection-input"
+        placeholder="How did the day go? What am I taking away from today?"
+      ></textarea>
+    </div>
+
+    <div class="footer">
+      <span class="save-status" id="saveStatus">Saved</span>
+      <button class="btn-clear" id="clearBtn">Clear today</button>
+    </div>
+  </div>
+
+  <script>
+    // Date display
+    const dateEl = document.getElementById('dateDisplay');
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    // Storage key per day
+    const todayKey = 'dashboard_' + now.toISOString().slice(0, 10);
+
+    const fields = ['focus', 'task1', 'task2', 'notice1', 'notice2', 'notice3', 'reflection'];
+    const checks = ['mindfulness', 'movement', 'connection'];
+
+    // Load saved data
+    function load() {
+      const saved = JSON.parse(localStorage.getItem(todayKey) || '{}');
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && saved[id] !== undefined) el.value = saved[id];
+      });
+      checks.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && saved[id] !== undefined) el.checked = saved[id];
+      });
+    }
+
+    // Save all data
+    const saveStatus = document.getElementById('saveStatus');
+    let saveTimer;
+
+    function save() {
+      const data = {};
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.value;
+      });
+      checks.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.checked;
+      });
+      localStorage.setItem(todayKey, JSON.stringify(data));
+
+      saveStatus.classList.add('visible');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveStatus.classList.remove('visible'), 1800);
+    }
+
+    // Auto-grow textareas
+    function autoGrow(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+
+    // Attach listeners
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        if (el.tagName === 'TEXTAREA') autoGrow(el);
+        save();
+      });
+    });
+
+    checks.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', save);
+    });
+
+    // Clear button
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (!confirm('Clear all entries for today?')) return;
+      localStorage.removeItem(todayKey);
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.value = ''; if (el.tagName === 'TEXTAREA') autoGrow(el); }
+      });
+      checks.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+    });
+
+    load();
+    // Init auto-grow heights after load
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.tagName === 'TEXTAREA') autoGrow(el);
+    });
+  </script>
+</body>
+</html>
