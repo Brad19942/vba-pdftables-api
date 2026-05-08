@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>TMJ Daily Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0e0e0e;
+      --surface:  #161616;
+      --surface2: #1f1f1f;
+      --text:     #e0dcd4;
+      --muted:    #777;
+      --border:   #2a2a2a;
+      --accent:   #7b8cde;
+      --green:    #4caf50;
+      --amber:    #f5a623;
+      --red:      #e84040;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px 10px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .04em; }
+    header p  { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Nav ────────────────────────────────── */
+    nav {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    nav button {
+      flex: 1;
+      padding: 11px 0;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: .88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    /* ── Layout ─────────────────────────────── */
+    main { padding: 16px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Form helpers ───────────────────────── */
+    .field { margin-bottom: 14px; }
+    label.field-label {
+      display: block;
+      font-size: .7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+    input[type="date"],
+    textarea,
+    select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .92rem;
+      padding: 9px 12px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type="date"]:focus,
+    textarea:focus { border-color: var(--accent); }
+    textarea { height: 74px; resize: none; line-height: 1.4; }
+
+    /* ── Session toggle ─────────────────────── */
+    .toggle-row { display: flex; gap: 8px; }
+    .toggle-btn {
+      flex: 1;
+      padding: 9px 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: .88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Rating buttons ─────────────────────── */
+    .metric-block { margin-bottom: 14px; }
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 7px;
+    }
+    .metric-name { font-size: .92rem; font-weight: 500; }
+    .metric-val  { font-size: .75rem; color: var(--muted); }
+
+    .rating-row { display: flex; gap: 5px; }
+    .r-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 11px 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    /* default tinted borders */
+    .r-btn[data-v="1"], .r-btn[data-v="2"] { border-color: rgba(76,175,80,.35); }
+    .r-btn[data-v="3"]                      { border-color: rgba(245,166,35,.35); }
+    .r-btn[data-v="4"], .r-btn[data-v="5"]  { border-color: rgba(232,64,64,.35); }
+    /* selected states */
+    .r-btn.sel-green { background: var(--green);  border-color: var(--green);  color: #fff; }
+    .r-btn.sel-amber { background: var(--amber);  border-color: var(--amber);  color: #fff; }
+    .r-btn.sel-red   { background: var(--red);    border-color: var(--red);    color: #fff; }
+
+    /* ── Save button ────────────────────────── */
+    .btn-save {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: opacity .15s;
+    }
+    .btn-save:hover { opacity: .85; }
+
+    /* ── Section heading ────────────────────── */
+    .section-head {
+      font-size: .68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      margin: 20px 0 10px;
+    }
+
+    /* ── Entry cards ────────────────────────── */
+    .entry-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 12px;
+      margin-bottom: 8px;
+    }
+    .entry-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+    .entry-date    { font-size: .88rem; font-weight: 600; }
+    .entry-session {
+      font-size: .72rem;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .entry-scores  { display: flex; gap: 7px; flex-wrap: wrap; }
+    .chip {
+      font-size: .75rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 5px;
+    }
+    .chip.green { background: rgba(76,175,80,.15);  color: var(--green); }
+    .chip.amber { background: rgba(245,166,35,.15); color: var(--amber); }
+    .chip.red   { background: rgba(232,64,64,.15);  color: var(--red);   }
+    .entry-notes { margin-top: 6px; font-size: .78rem; color: var(--muted); font-style: italic; }
+
+    /* ── Stat cards ─────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+    .stat-val   { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+    .stat-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+    .trend-up    { color: var(--red); }
+    .trend-down  { color: var(--green); }
+    .trend-flat  { color: var(--muted); }
+
+    /* ── Chart containers ───────────────────── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .chart-title {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+    .chart-wrap { position: relative; height: 180px; }
+
+    /* ── Export ─────────────────────────────── */
+    .export-area { padding-top: 16px; border-top: 1px solid var(--border); margin-top: 6px; }
+    .btn-export {
+      width: 100%;
+      padding: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .88rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-export:hover { background: var(--surface2); }
+
+    /* ── Toast ──────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #2d2d2d;
+      color: var(--text);
+      padding: 9px 18px;
+      border-radius: 20px;
+      font-size: .83rem;
+      opacity: 0;
+      transition: transform .25s, opacity .25s;
+      pointer-events: none;
+      z-index: 1000;
+      white-space: nowrap;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .empty-state { color: var(--muted); font-size: .83rem; text-align: center; padding: 18px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>TMJ Daily Tracker</h1>
+  <p>1 Apr – 21 Apr 2026</p>
+</header>
+
+<nav>
+  <button id="tab-log"       class="active" onclick="switchView('log')">Log</button>
+  <button id="tab-dashboard"              onclick="switchView('dashboard')">Dashboard</button>
+</nav>
+
+<main>
+
+  <!-- ══════════ LOG VIEW ══════════ -->
+  <div id="view-log" class="view active">
+
+    <div class="field">
+      <label class="field-label">Date</label>
+      <input type="date" id="log-date" min="2026-04-01" max="2026-04-21">
+    </div>
+
+    <div class="field">
+      <label class="field-label">Session</label>
+      <div class="toggle-row">
+        <button class="toggle-btn active" id="btn-morning" onclick="setSession('morning')">Morning</button>
+        <button class="toggle-btn"        id="btn-evening" onclick="setSession('evening')">Evening</button>
+      </div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-header">
+        <span class="metric-name">Ear / Hearing</span>
+        <span class="metric-val" id="ear-label">Not set</span>
+      </div>
+      <div class="rating-row" id="ear-btns">
+        <button class="r-btn" data-metric="ear" data-v="1" onclick="setRating('ear',1)">1</button>
+        <button class="r-btn" data-metric="ear" data-v="2" onclick="setRating('ear',2)">2</button>
+        <button class="r-btn" data-metric="ear" data-v="3" onclick="setRating('ear',3)">3</button>
+        <button class="r-btn" data-metric="ear" data-v="4" onclick="setRating('ear',4)">4</button>
+        <button class="r-btn" data-metric="ear" data-v="5" onclick="setRating('ear',5)">5</button>
+      </div>
+    </div>
+
+    <div class="metric-block">
+      <div class="metric-header">
+        <span class="metric-name">Muscle Tension</span>
+        <span class="metric-val" id="muscle-label">Not set</span>
+      </div>
+      <div class="rating-row" id="muscle-btns">
+        <button class="r-btn" data-metric="muscle" data-v="1" onclick="setRating('muscle',1)">1</button>
+        <button class="r-btn" data-metric="muscle" data-v="2" onclick="setRating('muscle',2)">2</button>
+        <button class="r-btn" data-metric="muscle" data-v="3" onclick="setRating('muscle',3)">3</button>
+        <button class="r-btn" data-metric="muscle" data-v="4" onclick="setRating('muscle',4)">4</button>
+        <button class="r-btn" data-metric="muscle" data-v="5" onclick="setRating('muscle',5)">5</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Notes (optional)</label>
+      <textarea id="log-notes" placeholder="Any additional observations…"></textarea>
+    </div>
+
+    <button class="btn-save" onclick="saveEntry()">Save Entry</button>
+
+    <div class="section-head">Recent Entries</div>
+    <div id="recent-list"></div>
+
+  </div>
+
+  <!-- ══════════ DASHBOARD VIEW ══════════ -->
+  <div id="view-dashboard" class="view">
+
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="chart-card">
+      <div class="chart-title">Ear / Hearing</div>
+      <div class="chart-wrap"><canvas id="chart-ear"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Muscle Tension</div>
+      <div class="chart-wrap"><canvas id="chart-muscle"></canvas></div>
+    </div>
+
+    <div class="export-area">
+      <div class="section-head">Export</div>
+      <button class="btn-export" onclick="exportReport()">Copy Physio Report to Clipboard</button>
+    </div>
+
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   Constants & state
+══════════════════════════════════════════════════ */
+const STORAGE_KEY = 'tmj_v1';
+const RANGE_START = '2026-04-01';
+const RANGE_END   = '2026-04-21';
+
+const SCALE = { 1:'None', 2:'Minimal', 3:'Moderate', 4:'Significant', 5:'Severe' };
+
+let session = 'morning';
+let ratings  = { ear: null, muscle: null };
+let earChart, muscleChart;
+
+/* ══════════════════════════════════════════════════
+   Storage helpers
+══════════════════════════════════════════════════ */
+function load()       { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function persist(d)   { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+function entryKey(date, sess) { return `${date}_${sess}`; }
+
+/* ══════════════════════════════════════════════════
+   Colour helpers
+══════════════════════════════════════════════════ */
+function colorClass(v) { return v <= 2 ? 'green' : v === 3 ? 'amber' : 'red'; }
+function colorHex(v)   { return v <= 2 ? '#4caf50' : v === 3 ? '#f5a623' : '#e84040'; }
+
+/* ══════════════════════════════════════════════════
+   Init
+══════════════════════════════════════════════════ */
+function init() {
+  const today = new Date().toISOString().slice(0, 10);
+  const clamped = today < RANGE_START ? RANGE_START : today > RANGE_END ? RANGE_END : today;
+  document.getElementById('log-date').value = clamped;
+
+  const hour = new Date().getHours();
+  setSession(hour >= 12 ? 'evening' : 'morning');
+
+  document.getElementById('log-date').addEventListener('change', loadExisting);
+
+  renderRecent();
+}
+
+/* ══════════════════════════════════════════════════
+   Session
+══════════════════════════════════════════════════ */
+function setSession(s) {
+  session = s;
+  document.getElementById('btn-morning').classList.toggle('active', s === 'morning');
+  document.getElementById('btn-evening').classList.toggle('active', s === 'evening');
+  loadExisting();
+}
+
+function loadExisting() {
+  const date  = document.getElementById('log-date').value;
+  const entry = load()[entryKey(date, session)];
+  if (entry) {
+    applyRating('ear',    entry.ear,    false);
+    applyRating('muscle', entry.muscle, false);
+    document.getElementById('log-notes').value = entry.notes || '';
+  } else {
+    clearRatings();
+    document.getElementById('log-notes').value = '';
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   Ratings
+══════════════════════════════════════════════════ */
+function setRating(metric, v) { applyRating(metric, v, true); }
+
+function applyRating(metric, v, updateState = true) {
+  if (updateState) ratings[metric] = v;
+  else             ratings[metric] = v;
+
+  // buttons
+  document.querySelectorAll(`.r-btn[data-metric="${metric}"]`).forEach(b => {
+    b.classList.remove('sel-green','sel-amber','sel-red');
+    if (parseInt(b.dataset.v) === v) b.classList.add(`sel-${colorClass(v)}`);
+  });
+
+  // label
+  const el = document.getElementById(`${metric}-label`);
+  el.textContent = `${v} – ${SCALE[v]}`;
+  el.style.color  = colorHex(v);
+}
+
+function clearRatings() {
+  ratings = { ear: null, muscle: null };
+  ['ear','muscle'].forEach(m => {
+    document.querySelectorAll(`.r-btn[data-metric="${m}"]`).forEach(b =>
+      b.classList.remove('sel-green','sel-amber','sel-red'));
+    const el = document.getElementById(`${m}-label`);
+    el.textContent = 'Not set';
+    el.style.color  = '';
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   Save
+══════════════════════════════════════════════════ */
+function saveEntry() {
+  if (ratings.ear === null || ratings.muscle === null) {
+    toast('Please rate both metrics before saving.'); return;
+  }
+  const date = document.getElementById('log-date').value;
+  if (!date) { toast('Please select a date.'); return; }
+
+  const data = load();
+  data[entryKey(date, session)] = {
+    date,
+    session,
+    ear:    ratings.ear,
+    muscle: ratings.muscle,
+    notes:  document.getElementById('log-notes').value.trim(),
+    ts:     Date.now()
+  };
+  persist(data);
+  toast('Entry saved!');
+  renderRecent();
+}
+
+/* ══════════════════════════════════════════════════
+   Recent entries
+══════════════════════════════════════════════════ */
+function renderRecent() {
+  const entries = Object.values(load())
+    .sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return a.session === 'evening' ? -1 : 1; // evening first when same date (desc)
+    })
+    .slice(0, 6);
+
+  const el = document.getElementById('recent-list');
+  if (!entries.length) {
+    el.innerHTML = '<p class="empty-state">No entries yet</p>'; return;
+  }
+
+  el.innerHTML = entries.map(e => {
+    const d   = new Date(e.date + 'T12:00:00');
+    const dStr = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+    const sess  = e.session === 'morning' ? 'Morning' : 'Evening';
+    const ec    = colorClass(e.ear);
+    const mc    = colorClass(e.muscle);
+    return `
+      <div class="entry-card">
+        <div class="entry-top">
+          <span class="entry-date">${dStr}</span>
+          <span class="entry-session">${sess}</span>
+        </div>
+        <div class="entry-scores">
+          <span class="chip ${ec}">Ear: ${e.ear}</span>
+          <span class="chip ${mc}">Muscle: ${e.muscle}</span>
+        </div>
+        ${e.notes ? `<div class="entry-notes">${esc(e.notes)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════
+   Dashboard
+══════════════════════════════════════════════════ */
+function renderDashboard() {
+  const data    = load();
+  const entries = Object.values(data);
+
+  const daysLogged = new Set(entries.map(e => e.date)).size;
+  const avgEar     = entries.length ? avg(entries.map(e => e.ear))    : null;
+  const avgMuscle  = entries.length ? avg(entries.map(e => e.muscle)) : null;
+
+  // Trend: compare combined score for last-4 vs previous-4 sessions
+  let trendLabel = '–', trendCls = 'trend-flat';
+  if (entries.length >= 4) {
+    const sorted  = [...entries].sort(sortChron);
+    const recent  = sorted.slice(-4);
+    const older   = sorted.length >= 8 ? sorted.slice(-8, -4) : sorted.slice(0, sorted.length - 4);
+    if (older.length) {
+      const diff = avg(recent.map(e => (e.ear + e.muscle) / 2)) -
+                   avg(older.map(e => (e.ear + e.muscle) / 2));
+      if      (diff >  0.2) { trendLabel = '↑ Worsening'; trendCls = 'trend-up'; }
+      else if (diff < -0.2) { trendLabel = '↓ Improving'; trendCls = 'trend-down'; }
+      else                  { trendLabel = '→ Stable';    trendCls = 'trend-flat'; }
+    }
+  }
+
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${daysLogged}</div>
+      <div class="stat-label">Days Logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:${avgEar !== null ? colorHex(avgEar) : 'var(--muted)'}">${avgEar !== null ? avgEar.toFixed(1) : '–'}</div>
+      <div class="stat-label">Avg Ear Score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:${avgMuscle !== null ? colorHex(avgMuscle) : 'var(--muted)'}">${avgMuscle !== null ? avgMuscle.toFixed(1) : '–'}</div>
+      <div class="stat-label">Avg Muscle Score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val ${trendCls}" style="font-size:${entries.length < 4 ? '.9' : '1.1'}rem">${trendLabel}</div>
+      <div class="stat-label">Trend</div>
+    </div>`;
+
+  buildCharts(data);
+}
+
+function buildCharts(data) {
+  // Generate full date range
+  const dates  = [];
+  const cursor = new Date('2026-04-01T12:00:00');
+  const endD   = new Date('2026-04-21T12:00:00');
+  while (cursor <= endD) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const labels      = dates.map(d => new Date(d+'T12:00:00').toLocaleDateString('en-GB', {day:'numeric',month:'short'}));
+  const earMorn     = dates.map(d => data[entryKey(d,'morning')]?.ear    ?? null);
+  const earEve      = dates.map(d => data[entryKey(d,'evening')]?.ear    ?? null);
+  const muscleMorn  = dates.map(d => data[entryKey(d,'morning')]?.muscle ?? null);
+  const muscleEve   = dates.map(d => data[entryKey(d,'evening')]?.muscle ?? null);
+
+  const baseDataset = { spanGaps: true, tension: .35, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 };
+  const scaleOpts = {
+    y: { min:0, max:5, ticks:{ stepSize:1, color:'#666' }, grid:{ color:'rgba(255,255,255,.04)' } },
+    x: { ticks:{ color:'#666', maxRotation:45, autoSkip:true, maxTicksLimit:11 }, grid:{ color:'rgba(255,255,255,.04)' } }
+  };
+  const pluginOpts = { legend:{ labels:{ color:'#e0dcd4', boxWidth:10, padding:14, font:{size:11} } } };
+
+  if (earChart)    earChart.destroy();
+  if (muscleChart) muscleChart.destroy();
+
+  earChart = new Chart(document.getElementById('chart-ear'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'Morning', data:earMorn, borderColor:'#7b8cde', backgroundColor:'rgba(123,140,222,.08)', ...baseDataset },
+      { label:'Evening', data:earEve,  borderColor:'#de8c7b', backgroundColor:'rgba(222,140,123,.08)', ...baseDataset }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, plugins:pluginOpts, scales:scaleOpts }
+  });
+
+  muscleChart = new Chart(document.getElementById('chart-muscle'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'Morning', data:muscleMorn, borderColor:'#7bde8c', backgroundColor:'rgba(123,222,140,.08)', ...baseDataset },
+      { label:'Evening', data:muscleEve,  borderColor:'#dede7b', backgroundColor:'rgba(222,222,123,.08)', ...baseDataset }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, plugins:pluginOpts, scales:scaleOpts }
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   View switching
+══════════════════════════════════════════════════ */
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById(`view-${v}`).classList.add('active');
+  document.getElementById('tab-log').classList.toggle('active', v === 'log');
+  document.getElementById('tab-dashboard').classList.toggle('active', v === 'dashboard');
+  if (v === 'dashboard') renderDashboard();
+}
+
+/* ══════════════════════════════════════════════════
+   Export
+══════════════════════════════════════════════════ */
+function exportReport() {
+  const data    = load();
+  const entries = Object.values(data).sort(sortChron);
+
+  if (!entries.length) { toast('No data to export yet.'); return; }
+
+  const lines = [
+    'TMJ SYMPTOM LOG',
+    'Period: 1 April 2026 – 21 April 2026',
+    'Scale: 1 = None | 2 = Minimal | 3 = Moderate | 4 = Significant | 5 = Severe',
+    '='.repeat(44),
+    ''
+  ];
+
+  let prevDate = null;
+  entries.forEach(e => {
+    const dObj = new Date(e.date + 'T12:00:00');
+    const dStr = dObj.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    if (e.date !== prevDate) {
+      if (prevDate) lines.push('');
+      lines.push(dStr);
+      lines.push('-'.repeat(32));
+      prevDate = e.date;
+    }
+    lines.push(`  ${e.session === 'morning' ? 'Morning' : 'Evening'}`);
+    lines.push(`    Ear / Hearing:   ${e.ear} (${SCALE[e.ear]})`);
+    lines.push(`    Muscle Tension:  ${e.muscle} (${SCALE[e.muscle]})`);
+    if (e.notes) lines.push(`    Notes: ${e.notes}`);
+  });
+
+  const avgEar    = avg(entries.map(e => e.ear)).toFixed(2);
+  const avgMuscle = avg(entries.map(e => e.muscle)).toFixed(2);
+  const days      = new Set(entries.map(e => e.date)).size;
+
+  lines.push('', '='.repeat(44), 'SUMMARY');
+  lines.push(`  Sessions logged:            ${entries.length}`);
+  lines.push(`  Days with data:             ${days} / 21`);
+  lines.push(`  Average Ear / Hearing:      ${avgEar}`);
+  lines.push(`  Average Muscle Tension:     ${avgMuscle}`);
+  lines.push('', 'Generated by TMJ Daily Tracker');
+
+  const text = lines.join('\n');
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => toast('Report copied to clipboard!'))
+      .catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  Object.assign(ta.style, { position:'fixed', opacity:'0', top:'0', left:'0' });
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); toast('Report copied to clipboard!'); }
+  catch { toast('Could not copy – please copy manually.'); }
+  document.body.removeChild(ta);
+}
+
+/* ══════════════════════════════════════════════════
+   Toast
+══════════════════════════════════════════════════ */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+/* ══════════════════════════════════════════════════
+   Utilities
+══════════════════════════════════════════════════ */
+function avg(arr) { return arr.reduce((s, v) => s + v, 0) / arr.length; }
+function esc(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sortChron(a, b) {
+  if (a.date !== b.date) return a.date.localeCompare(b.date);
+  return a.session === 'morning' ? -1 : 1;
+}
+
+/* ══════════════════════════════════════════════════
+   Boot
+══════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>
