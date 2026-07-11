@@ -179,11 +179,21 @@ ol.rules li::before{
 .accordion.open .acc-body{max-height:none;}
 .acc-body-inner{padding:0 13px 13px;}
 
-.daylabel{
-  font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
-  color:var(--accent); margin:14px 0 8px 2px;
+.dayacc{margin-top:14px;}
+.dayacc:first-child{margin-top:2px;}
+.day-head{
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  background:none; border:none; border-bottom:1px solid var(--border); padding:0 0 8px 2px; margin-bottom:8px;
+  font:inherit; text-align:left;
 }
-.daylabel:first-child{margin-top:2px;}
+.daylabel{
+  font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent);
+}
+.daycount{font-size:11px; color:var(--muted); font-weight:600; margin-left:auto; margin-right:2px;}
+.day-head .chev{width:15px; height:15px; color:var(--muted); transition:transform .18s ease; flex:none;}
+.dayacc.open .day-head .chev{transform:rotate(90deg);}
+.day-body{max-height:0; overflow:hidden; transition:max-height .22s ease;}
+.dayacc.open .day-body{max-height:none;}
 
 .exrow{border:1px solid var(--border); border-radius:13px; padding:11px 12px; background:var(--raised); margin-bottom:8px;}
 .exrow .exname{font-weight:700; font-size:14px;}
@@ -590,9 +600,13 @@ function renderLog(){
     html += '<div class="accordion'+(isOpen?' open':'')+'" data-acc="log-w'+wk+'">';
     html += '<button class="acc-head" data-acctoggle="log-w'+wk+'"><span><span class="title">Week '+wk+'</span><br><span class="meta">3 sessions · Mon / Wed / Fri</span></span>'+chevSvg()+'</button>';
     html += '<div class="acc-body"><div class="acc-body-inner">';
-    Object.keys(weeks[wk]).forEach(function(key){
+    Object.keys(weeks[wk]).forEach(function(key, di){
       var g = weeks[wk][key];
-      html += '<div class="daylabel">'+esc(g.day)+' — '+esc(g.session)+'</div>';
+      var dayKey = 'log-w'+wk+'-d'+di;
+      var dayOpen = (openState[dayKey] !== undefined) ? openState[dayKey] : true;
+      html += '<div class="dayacc'+(dayOpen?' open':'')+'" data-acc="'+dayKey+'">';
+      html += '<button class="day-head" data-acctoggle="'+dayKey+'"><span class="daylabel">'+esc(g.day)+' — '+esc(g.session)+'</span><span class="daycount">'+g.rows.length+' exercises</span>'+chevSvg()+'</button>';
+      html += '<div class="day-body"><div class="day-body-inner">';
       g.rows.forEach(function(row){
         var ent = logEntry(row);
         var nSets = Math.min(parseInt(row.sets,10)||3, 5);
@@ -616,6 +630,7 @@ function renderLog(){
         html += '<div class="noterow"><input type="text" placeholder="Notes / knee" data-role="notes" value="'+esc(ent.data.notes||'')+'"></div>';
         html += '</div>';
       });
+      html += '</div></div></div>';
     });
     html += '</div></div></div>';
   });
